@@ -32,7 +32,10 @@ def setup(config):
     else:
         config.device = "cpu"
 
-    model = torch.load(config.snapshot_path).to(config.device)
+    model = UWnet()
+    state_dict = torch.load(config.snapshot_path, weights_only=True)
+    model.load_state_dict(state_dict)
+    model = model.to(config.device)
 
     transform = transforms.Compose([transforms.Resize((config.resize,config.resize)),transforms.ToTensor()])
     test_dataset = UWNetDataSet(config.test_images_path,None,transform, False)

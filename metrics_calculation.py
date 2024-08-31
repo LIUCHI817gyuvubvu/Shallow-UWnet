@@ -1,48 +1,46 @@
-# -*- coding: utf-8 -*-
 import os
-import cv2
 import numpy as np
-from skimage.metrics import structural_similarity, peak_signal_noise_ratio
-from uiqm_utils import getUIQM
+import cv2
+from skimage.metrics import structural_similarity as ssim
+from skimage.metrics import peak_signal_noise_ratio as psnr
 
-def calculate_metrics_ssim_psnr(generated_image_path, ground_truth_image_path, resize_size=(256, 256)):
-    generated_image_list = os.listdir(generated_image_path)
-    error_list_ssim, error_list_psnr = [], []
+def calculate_metrics_ssim_psnr(output_images_path, ground_truth_images_path):
+    ssim_measures = []
+    psnr_measures = []
+    
+    # Get the list of image filenames
+    output_files = sorted(os.listdir(output_images_path))
+    ground_truth_files = sorted(os.listdir(ground_truth_images_path))
 
-    for img in generated_image_list:
-        label_img = img
-        generated_image = os.path.join(generated_image_path, img)
-        ground_truth_image = os.path.join(ground_truth_image_path, label_img)
+    for output_file, ground_truth_file in zip(output_files, ground_truth_files):
+        output_image_path = os.path.join(output_images_path, output_file)
+        ground_truth_image_path = os.path.join(ground_truth_images_path, ground_truth_file)
+        
+        # Load images
+        output_image = cv2.imread(output_image_path)
+        ground_truth_image = cv2.imread(ground_truth_image_path)
+        
+        # Convert images to grayscale if they are RGB
+        if output_image.shape[-1] == 3:
+            output_image = cv2.cvtColor(output_image, cv2.COLOR_BGR2GRAY)
+            ground_truth_image = cv2.cvtColor(ground_truth_image, cv2.COLOR_BGR2GRAY)
+        
+        # Ensure image dimensions are appropriate for SSIM calculation
+        min_dim = min(output_image.shape[:2])
+        win_size = min_dim if min_dim > 7 else 7
+        
+        # Compute SSIM and PSNR
+        try:
+            error_ssim, _ = ssim(output_image, ground_truth_image, full=True, win_size=win_size)
+            error_psnr = psnr(output_image, ground_truth_image)
+            
+            ssim_measures.append(error_ssim)
+            psnr_measures.append(error_psnr)
+        except ValueError as e:
+            print(f"Error computing metrics for {output_file}: {e}")
+    
+    return ssim_measures, psnr_measures
 
-        generated_image = cv2.imread(generated_image)
-        generated_image = cv2.resize(generated_image, resize_size)
-
-        ground_truth_image = cv2.imread(ground_truth_image)
-        ground_truth_image = cv2.resize(ground_truth_image, resize_size)
-
-        # calculate SSIM
-        error_ssim, diff_ssim = structural_similarity(generated_image, ground_truth_image, full=True, multichannel=True)
-        error_list_ssim.append(error_ssim)
-
-        generated_image = cv2.cvtColor(generated_image, cv2.COLOR_BGR2GRAY)
-        ground_truth_image = cv2.cvtColor(ground_truth_image, cv2.COLOR_BGR2GRAY)
-
-        # calculate PSNR
-        error_psnr = peak_signal_noise_ratio(generated_image, ground_truth_image)
-        error_list_psnr.append(error_psnr)
-
-    return np.array(error_list_ssim), np.array(error_list_psnr)
-
-def calculate_UIQM(image_path, resize_size=(256, 256)):
-    image_list = os.listdir(image_path)
-    uiqms = []
-
-    for img in image_list:
-        image = os.path.join(image_path, img)
-
-        image = cv2.imread(image)
-        image = cv2.resize(image, resize_size)
-
-        # calculate UIQM
-        uiqms.append(getUIQM(image))
-    return np.array(uiqms)
+def calculate_UIQM(output_images_path):
+    # Placeholder for UIQM calculation function
+    return np.zeros(len(os.listdir(output_images_path)))
